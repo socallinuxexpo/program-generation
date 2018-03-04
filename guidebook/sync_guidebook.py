@@ -2,8 +2,22 @@
 
 #
 # Copyright 2018 Southern California Linux Expo
-# Author:: Phil Dibowitz <phil@ipm.com>
 #
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# Author:: Phil Dibowitz <phil@ipm.com>
 # This is quick-n-dirty script to import a CSV export from the SCALE
 # website into Guidebook. By default it'll add only what's missing, but
 # can optionally update all existing sessions.
@@ -237,6 +251,9 @@ class GuideBook:
         return [ourid]
 
     def add_session(self, session, update, sid=None):
+        '''
+        Sesssion-specific wrapper around add_thing()
+        '''
         if update and not self.update:
             return
         name = session['Session Title']
@@ -256,6 +273,9 @@ class GuideBook:
         self.sessions[name] = self.add_thing('sessions', name, data, update, sid)
 
     def setup_sessions(self, sessions):
+        '''
+        Add all rooms passed in if missing.
+        '''
         for session in sessions:
             name = session['Session Title']
             update = False

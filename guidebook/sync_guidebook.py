@@ -1,0 +1,365 @@
+#!/usr/bin/python
+
+#
+# Copyright 2018 Southern California Linux Expo
+# Author:: Phil Dibowitz <phil@ipm.com>
+#
+# This is quick-n-dirty script to import a CSV export from the SCALE
+# website into Guidebook. By default it'll add only what's missing, but
+# can optionally update all existing sessions.
+#
+# It automatically setups rooms ("Locations") and tracks. It has a hard-coded
+# map of colors in the Guidebook class, so if you change tracks you'll need
+# to update that.
+#
+
+import click
+import csv
+import logging
+import requests
+import sys
+
+DBASE_DEFAULT = '/tmp/presentation_exporter_event_1967.csv'
+
+class OurCSV:
+    rooms = set()
+    tracks = set()
+    sessions = set()
+
+    FIELD_MAPPING = {
+        'tracks': 'Schedule Track (Optional)',
+        'rooms': 'Room/Location',
+    }
+
+    def __init__(self, dbase, logger):
+        self.logger = logger
+        self.sessions = self.load_csv(dbase)
+
+    def cleanrecord(self, record):
+        for field in record:
+            record[field] = record[field].decode('utf-8')
+        return record
+
+    def load_csv(self, filename):
+        self.logger.info('Loading CSV file')
+        data = []
+        with open(filename, 'rb') as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+            for row in reader:
+                track = row[self.FIELD_MAPPING['tracks']]
+                room = row[self.FIELD_MAPPING['rooms']]
+                if track != '':
+                    self.tracks.add(track)
+                if room != '':
+                    self.rooms.add(room)
+                data.append(self.cleanrecord(row))
+        return data
+
+class GuideBook:
+    URLS = {
+        'guide': 'https://builder.guidebook.com/open-api/v1/guides/',
+        'tracks': 'https://builder.guidebook.com/open-api/v1/schedule-tracks/',
+        'rooms': 'https://builder.guidebook.com/open-api/v1/locations/',
+        'sessions': 'https://builder.guidebook.com/open-api/v1/sessions/',
+    }
+
+    COLOR_MAP = {
+        'Badge Hacking': '#dddddd',
+        'BoFs': '#ffbc00',
+        'Cloud': '#638dce',
+        'Container and Virtualization': '#ffa200',
+        'DevOps': '#565448',
+        'Developer': '#d65c09',
+        'Embedded': '#004a4a',
+        'General': '#97a67a',
+        'HAM Radio': '#96beef',
+        'Keynote': '#d31111',
+        'Legal & Licensing': '#fff8dc',
+        'LibreGraphics': '#dddddd',
+        'Mentoring': '#998876',
+        'Monitoring': '#ffbc00',
+        'MySQL': '#0aaca0',
+        'Next Generation': '#96f74b',
+        'Open Data': '#6c6c6c',
+        'Open Source in Enterprises': '#ffd672',
+        'PostgreSQL': '#0aaca0',
+        'Security': '#000000',
+        'SysAdmin': '#c4c249',
+        'Ubucon': '#774022',
+    }
+
+    def __init__(self, logger, update, key):
+        self.logger = logger
+        self.update = update
+        self.headers = {'Authorization': 'JWT ' + key}
+        self.guide = self.get_guide()
+        self.tracks = self.get_things('tracks')
+        self.rooms = self.get_things('rooms')
+        self.sessions = self.get_things('sessions')
+
+    def get_guide(self):
+        '''
+        We always have a single guide, and need it's IDs for most calls,
+        so we request all guides, check there's only one, and then return
+        it's ID.
+        '''
+        response = requests.get(
+           self.URLS['guide'], headers = self.headers
+        ).json()
+        if len(response['results']) != 1:
+            self.logger.critical("ERROR: Did not find exactly 1 guide...")
+            sys.exit(1)
+        return response['results'][0]['id']
+
+    def get_things(self, thing):
+        '''
+        Get the current set of <thing> from Guidebook, where <thing> is rooms,
+        tracks, sessions.
+        '''
+        msg = 'Loading %s from Guidebook' % thing
+        ourthings = {}
+        url = self.URLS[thing] + '?guide=%d' % self.guide
+        page = 1
+        while url is not None:
+            self.logger.info('%s (page %d)' % (msg, page)
+            )
+            response = requests.get(
+                    url,
+                    headers = self.headers,
+            ).json()
+            for ourthing in response['results']:
+                ourthings[ourthing['name']] = ourthing
+            url = response['next']
+            page += 1
+        return ourthings
+
+    def add_thing(self, thing, name, data, update, tid):
+        '''
+        Implementation of adding objects to Guidebook. Wrapped by the
+        functions that know how to build the data and use it.
+        '''
+        verb = 'Updating' if update else 'Adding'
+        self.logger.info("%s %s '%s' to Guidebook" % (verb, thing, name))
+        self.logger.debug("Data: %s" % data)
+        if update:
+            response = requests.patch(
+                self.URLS[thing] + '%d/' % tid, data=data, headers=self.headers
+            ).json()
+        else:
+            response = requests.post(
+                self.URLS[thing], data=data, headers=self.headers
+            ).json()
+        self.logger.debug("Response: %s" % response)
+        if 'id' not in response:
+            self.logger.error("Failed to import.")
+            self.logger.error("DATA: %s" % data)
+            self.logger.error("RESPONSE: %s" % response)
+            sys.exit(1)
+        return response
+
+    def add_track(self, track, update, tid):
+        '''
+        Track-specific wrapper around add_thing()
+        '''
+        if update and not self.update:
+            return
+        data = {
+            'guide': self.guide,
+            'name': track,
+            # NOTE WELL: Guidebook cannot handle lower-case letters
+            'color': self.COLOR_MAP[track].upper(),
+        }
+        self.tracks[track] = self.add_thing('tracks', track, data, update, tid)
+
+    def setup_tracks(self, tracks):
+        '''
+        Add all tracks passed in if missing.
+        '''
+        for track in tracks:
+            update = False
+            tid = None
+            if track in self.tracks:
+                update = True
+                tid = self.tracks[track]['id']
+            self.add_track(track, update, tid)
+
+    def add_room(self, room, update, rid):
+        '''
+        Room-specific wrapper around add_thing()
+        '''
+        if update and not self.update:
+            return
+        data = {
+            'guide': self.guide,
+            'name': room,
+            'location_type': 2, # not google maps
+        }
+        self.rooms[room] = self.add_thing('rooms', room, data, update, rid)
+
+    def setup_rooms(self, rooms):
+        '''
+        Add all rooms passed in if missing.
+        '''
+        for room in rooms:
+            update = False
+            rid = None
+            if room in self.rooms:
+                update = True
+                rid = self.rooms[room]['id']
+            self.add_room(room, update, rid)
+
+    def get_times(self, session):
+        '''
+        Helper function to build times for guidebook.
+        '''
+        d = session['Date'].split()[1]
+        month, date, year = d.split('/')
+        start = "%s-%s-%sT%s:00" % (year, month, date, session['Time Start'])
+        end = "%s-%s-%sT%s:00" % (year, month, date, session['Time End'])
+        return (start, end)
+
+    def get_id(self, thing, session):
+        '''
+        Get the ID for <thing> where thing is a room or track
+        '''
+        key = OurCSV.FIELD_MAPPING[thing]
+        if session[key] == '':
+            return []
+        self.logger.debug(
+            "Thing: %s, Key: %s, Val: %s" % (thing, key, session[key])
+        )
+        # This is `ourlist = self.rooms` or `ourlist = self.tracks`
+        ourlist = getattr(self, thing)
+        self.logger.debug(
+            "List of %s's is %s" % (thing, ourlist.keys())
+        )
+        ourid = ourlist[session[key]]['id']
+        return [ourid]
+
+    def add_session(self, session, update, sid=None):
+        if update and not self.update:
+            return
+        name = session['Session Title']
+        verb = 'Updating' if update else 'Adding'
+        self.logger.info("%s session '%s' to Guidebook" % (verb, name))
+        start, end = self.get_times(session)
+        data = {
+            'name': name,
+            'start_time': start,
+            'end_time': end,
+            'guide': self.guide,
+            'description_html': '<p>%s</p>' % session['Description'],
+            'schedule_tracks': self.get_id('tracks', session),
+            'locations': self.get_id('rooms', session),
+        }
+        self.logger.debug("Data: %s" % data)
+        self.sessions[name] = self.add_thing('sessions', name, data, update, sid)
+
+    def setup_sessions(self, sessions):
+        for session in sessions:
+            name = session['Session Title']
+            update = False
+            sid = None
+            if session['Date'] == '':
+                self.logger.warn("Skipping %s - no date" % name)
+            if name in self.sessions:
+                update = True
+                sid = self.sessions[name]['id']
+            self.add_session(session, update, sid)
+
+    def delete_sessions(self):
+        self.logger.warn("Deleting all sessions")
+        for session in self.sessions.values():
+            self.logger.debug(
+                "Deleting session %d [%s]" % (session['id'], session['name'])
+            )
+            response = requests.delete(
+                self.URLS['sessions'] + '%d/' % session['id'],
+                headers=self.headers,
+            )
+            self.logger.debug("Got %d" % response.status_code)
+            if not (response.status_code >= 200 and
+                    response.status_code < 300):
+                self.logger.error("Failed to delete")
+                self.logger.error("RESPONSE: %s" % response.json())
+                sys.exit(1)
+
+    def delete_tracks(self):
+        self.logger.warn("Deleting all tracks")
+        for track in self.tracks.values():
+            self.logger.debug(
+                "Deleting track %d [%s]" % (track['id'], track['name'])
+            )
+            response = requests.delete(
+                self.URLS['tracks'] + '%d/' % track['id'],
+                headers=self.headers,
+            )
+            if response.status_code != 204:
+                self.logger.error("Failed to delete")
+                self.logger.error("RESPONSE: %s" % response.json())
+                sys.exit(1)
+
+    def delete_rooms(self):
+        self.logger.warn("Deleting all rooms")
+        for room in self.rooms.values():
+            self.logger.debug(
+                "Deleting room %d [%s]" % (room['id'], room['name'])
+            )
+            response = requests.delete(
+                self.URLS['rooms'] + '%d/' % room['id'],
+                headers=self.headers,
+            )
+            if response.status_code != 204:
+                self.logger.error("Failed to delete")
+                self.logger.error("RESPONSE: %s" % response.json())
+                sys.exit(1)
+
+    def delete_all(self):
+        self.delete_sessions()
+        self.delete_tracks()
+        self.delete_rooms()
+
+
+@click.command()
+@click.option('--debug/--no-debug', '-d', default=False,
+        help="Print debug messages.")
+@click.option('--update/--no-update', '-u', default=False,
+        help="Update existing sessions.")
+@click.option('--delete-all/--no-delete-all', default=False,
+        help="Delete all tracks, rooms, and sessions")
+@click.option('--csv-file', default=DBASE_DEFAULT,
+        help="CSV file to use.")
+@click.option('--api-file', '-a', default='guidebook_api.txt',
+        help="File to read API key from")
+def main(debug, update, delete_all, csv_file, api_file):
+    level = logging.INFO
+    if debug:
+        level = logging.DEBUG
+    logger = logging.getLogger("genbook")
+    logger.setLevel(level)
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    with open(api_file, 'r') as api:
+        key = api.read().strip()
+
+    if delete_all:
+        print "WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        print "This will cause any attendee who has saved any sessions"
+        print "into a schedule to lose all of that work."
+        click.confirm('ARE YOU FUCKING SURE?!', abort=True)
+    else:
+        ourdata = OurCSV(csv_file, logger)
+
+    ourguide = GuideBook(logger, update, key)
+    if delete_all:
+        ourguide.delete_all()
+    else:
+        ourguide.setup_tracks(ourdata.tracks)
+        ourguide.setup_rooms(ourdata.rooms)
+        ourguide.setup_sessions(ourdata.sessions)
+
+if __name__ == '__main__':
+    main()

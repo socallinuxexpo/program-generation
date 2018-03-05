@@ -27,6 +27,7 @@
 # to update that.
 #
 
+from __future__ import print_function
 import click
 import csv
 import logging
@@ -77,6 +78,10 @@ class GuideBook:
         'tracks': 'https://builder.guidebook.com/open-api/v1/schedule-tracks/',
         'rooms': 'https://builder.guidebook.com/open-api/v1/locations/',
         'sessions': 'https://builder.guidebook.com/open-api/v1/sessions/',
+
+        'x-rooms': 'https://builder.guidebook.com/api/locations/',
+        'x-maps': 'https://builder.guidebook.com/api/maps/',
+        'x-map-regions': 'https://builder.guidebook.com/api/map-regions/',
     }
 
     COLOR_MAP = {
@@ -104,7 +109,35 @@ class GuideBook:
         'Ubucon': '#774022',
     }
 
-    def __init__(self, logger, update, key):
+    ROOM_TO_MAP_REGION = {
+        'Ballroom A': {'h': 0.04, 'w': 0.056, 'x': 0.668, 'y': 0.477},
+        'Ballroom B': {'h': 0.04, 'w': 0.056, 'x': 0.668, 'y': 0.519},
+        'Ballroom C': {'h': 0.04, 'w': 0.056, 'x': 0.668, 'y': 0.56},
+        'Ballroom DE': {'h': 0.122, 'w': 0.082, 'x': 0.729, 'y': 0.477},
+        'Ballroom F': {'h': 0.04, 'w': 0.056, 'x': 0.816, 'y': 0.56},
+        'Ballroom G': {'h': 0.04, 'w': 0.056, 'x': 0.816, 'y': 0.519},
+        'Ballroom H': {'h': 0.04, 'w': 0.056, 'x': 0.816, 'y': 0.477},
+        'Check-in': {'h': 0.09, 'w': 0.06, 'x': 0.608, 'y': 0.301},
+        'Exhibit Hall': {'h': 0.141, 'w': 0.209, 'x': 0.675, 'y': 0.189},
+        'Room 101': {'h': 0.039, 'w': 0.042, 'x': 0.58, 'y': 0.843},
+        'Room 102': {'h': 0.039, 'w': 0.042, 'x': 0.535, 'y': 0.843},
+        'Room 103': {'h': 0.039, 'w': 0.042, 'x': 0.488, 'y': 0.843},
+        'Room 104': {'h': 0.039, 'w': 0.042, 'x': 0.443, 'y': 0.843},
+        'Room 105': {'h': 0.039, 'w': 0.042, 'x': 0.396, 'y': 0.843},
+        'Room 106': {'h': 0.048, 'w': 0.077, 'x': 0.396, 'y': 0.713},
+        'Room 107': {'h': 0.048, 'w': 0.077, 'x': 0.545, 'y': 0.713},
+        'Room 204': {'h': 0.042, 'w': 0.03, 'x': 0.231, 'y': 0.836},
+        'Room 205': {'h': 0.021, 'w': 0.025, 'x': 0.201, 'y': 0.836},
+        'Room 207': {'h': 0.042, 'w': 0.03, 'x': 0.154, 'y': 0.836},
+        'Room 208': {'h': 0.042, 'w': 0.03, 'x': 0.121, 'y': 0.836},
+        'Room 209': {'h': 0.021, 'w': 0.025, 'x': 0.079, 'y': 0.858},
+        'Room 210': {'h': 0.021, 'w': 0.025, 'x': 0.079, 'y': 0.836},
+        'Room 211': {'h': 0.039, 'w': 0.065, 'x': 0.079, 'y': 0.713},
+        'Room 212': {'h': 0.039, 'w': 0.03, 'x': 0.237, 'y': 0.713},
+        'Room 214': {'h': 0.039, 'w': 0.03, 'x': 0.273, 'y': 0.713},
+    }
+
+    def __init__(self, logger, update, key, x_key=None):
         self.logger = logger
         self.update = update
         self.headers = {'Authorization': 'JWT ' + key}
@@ -112,6 +145,12 @@ class GuideBook:
         self.tracks = self.get_things('tracks')
         self.rooms = self.get_things('rooms')
         self.sessions = self.get_things('sessions')
+
+        if x_key:
+            self.x_headers = {'Authorization': 'JWT ' + x_key}
+            self.x_rooms = self.get_things('x-rooms')
+            self.x_map_id = self.get_x_map_id()
+            self.x_map_regions = self.get_things('x-map-regions')
 
     def get_guide(self):
         '''
@@ -134,6 +173,15 @@ class GuideBook:
             sys.exit(1)
         return guide_id
 
+    def get_x_map_id(self):
+        response = requests.get(
+           self.URLS['x-maps'], headers=self.x_headers
+        ).json()
+        if len(response['results']) != 1:
+            self.logger.critical("ERROR: Did not find exactly 1 map...")
+            sys.exit(1)
+        return response['results'][0]['id']
+
     def get_things(self, thing):
         '''
         Get the current set of <thing> from Guidebook, where <thing> is rooms,
@@ -145,11 +193,25 @@ class GuideBook:
         page = 1
         while url is not None:
             self.logger.info('%s (page %d)' % (msg, page))
-            response = requests.get(url, headers=self.headers).json()
+            response = requests.get(
+                    url,
+                    headers=(self.headers
+                             if not thing.startswith('x-') else
+                             self.x_headers),
+            ).json()
             for ourthing in response['results']:
-                ourthings[ourthing['name']] = ourthing
+                # Fallback to id for things without names (e.g. map-regions)
+                name = ourthing.get('name') or ourthing.get('id')
+                if isinstance(name, dict):
+                    # Things retrived from the internal API
+                    # (i.e. x-* things) have names that are dicts like:
+                    # 'name': { 'en-US': 'Thing name' }
+                    # Assume first value is what we want
+                    name = list(name.values())[0]
+                ourthings[name] = ourthing
             url = response['next']
             page += 1
+        self.logger.debug('Loaded %s: %s things', thing, len(ourthings))
         return ourthings
 
     def add_thing(self, thing, name, data, update, tid):
@@ -160,13 +222,16 @@ class GuideBook:
         verb = 'Updating' if update else 'Adding'
         self.logger.info("%s %s '%s' to Guidebook" % (verb, thing, name))
         self.logger.debug("Data: %s" % data)
+        headers = (self.headers
+                   if not thing.startswith('x-') else
+                   self.x_headers)
         if update:
             response = requests.patch(
-                self.URLS[thing] + '%d/' % tid, data=data, headers=self.headers
+                self.URLS[thing] + '%d/' % tid, data=data, headers=headers
             ).json()
         else:
             response = requests.post(
-                self.URLS[thing], data=data, headers=self.headers
+                self.URLS[thing], data=data, headers=headers
             ).json()
         self.logger.debug("Response: %s" % response)
         if 'id' not in response:
@@ -226,6 +291,52 @@ class GuideBook:
                 update = True
                 rid = self.rooms[room]['id']
             self.add_room(room, update, rid)
+
+    def add_x_map_region(self, map_region, update, rid, location_id):
+        if update and not self.update:
+            return
+        name = 'map-regions-%s' % rid,
+        data = {
+            'map_object': self.x_map_id,
+            'location': location_id,
+            'relative_x': map_region['x'],
+            'relative_y': map_region['y'],
+            'relative_width': map_region['w'],
+            'relative_height': map_region['h'],
+        }
+        self.add_thing('x-map-regions', name, data, update, rid)
+
+    def get_x_map_region_for_room(self, room):
+        return next((reg for reg in self.x_map_regions.values()
+                     if reg['location']['id'] == self.x_rooms[room]['id']),
+                    None)
+
+    def setup_x_map_regions(self):
+        for room, map_region in self.ROOM_TO_MAP_REGION.items():
+            if room not in self.x_rooms:
+                self.logger.warning('Room "%s" does not exist in Guidebook. '
+                                    'Skipping map region %s', room, map_region)
+                continue
+            update = False
+            rid = None
+            guidebook_map_region = self.get_x_map_region_for_room(room)
+            if guidebook_map_region:
+                update = True
+                rid = guidebook_map_region['id']
+
+            location_id = self.x_rooms[room]['id']
+
+            if self.update:
+                # Update room's Guidebook location to work the map region.
+                # NOTE: Changing the type to gb-interactive hides the location
+                # from the official API so it's might break other things.
+                self.add_thing('x-rooms',
+                               room,
+                               data={'location_type': 'gb-interactive'},
+                               update=True,
+                               tid=self.x_rooms[room]['id'])
+
+            self.add_x_map_region(map_region, update, rid, location_id)
 
     def get_times(self, session):
         '''
@@ -367,7 +478,11 @@ class GuideBook:
     '--api-file', '-a', default='guidebook_api.txt',
     help="File to read API key from"
 )
-def main(debug, update, delete_all, csv_file, api_file):
+@click.option(
+    '--x-api-file', '-x', default='guidebook_api_x.txt',
+    help="File to read API key from"
+)
+def main(debug, update, delete_all, csv_file, api_file, x_api_file):
     level = logging.INFO
     if debug:
         level = logging.DEBUG
@@ -381,21 +496,29 @@ def main(debug, update, delete_all, csv_file, api_file):
     with open(api_file, 'r') as api:
         key = api.read().strip()
 
+    try:
+        with open(x_api_file, 'r') as api:
+            x_key = api.read().strip()
+    except IOError:
+        x_key = None
+
     if delete_all:
-        print 'WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'  # noqa: E999
-        print 'This will cause any attendee who has saved any sessions'
-        print 'into a schedule to lose all of that work.'
+        print('WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')  # noqa: E999
+        print('This will cause any attendee who has saved any sessions')
+        print('into a schedule to lose all of that work.')
         click.confirm('ARE YOU FUCKING SURE?!', abort=True)
     else:
         ourdata = OurCSV(csv_file, logger)
 
-    ourguide = GuideBook(logger, update, key)
+    ourguide = GuideBook(logger, update, key, x_key=x_key)
     if delete_all:
         ourguide.delete_all()
     else:
         ourguide.setup_tracks(ourdata.tracks)
         ourguide.setup_rooms(ourdata.rooms)
         ourguide.setup_sessions(ourdata.sessions)
+        if x_key:
+            ourguide.setup_x_map_regions()
 
 
 if __name__ == '__main__':

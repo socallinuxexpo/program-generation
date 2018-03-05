@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 
 #
 # Copyright 2018 Southern California Linux Expo
@@ -35,6 +35,7 @@ import sys
 
 DBASE_DEFAULT = '/tmp/presentation_exporter_event_1967.csv'
 
+
 class OurCSV:
     rooms = set()
     tracks = set()
@@ -68,6 +69,7 @@ class OurCSV:
                     self.rooms.add(room)
                 data.append(self.cleanrecord(row))
         return data
+
 
 class GuideBook:
     URLS = {
@@ -118,9 +120,9 @@ class GuideBook:
         it's ID.
         '''
         response = requests.get(
-           self.URLS['guide'], headers = self.headers
+            self.URLS['guide'], headers=self.headers
         ).json()
-        if len(response['results']) != 1:
+        if not len(response['results']) == 1:
             self.logger.critical("ERROR: Did not find exactly 1 guide...")
             sys.exit(1)
         return response['results'][0]['id']
@@ -135,12 +137,8 @@ class GuideBook:
         url = self.URLS[thing] + '?guide=%d' % self.guide
         page = 1
         while url is not None:
-            self.logger.info('%s (page %d)' % (msg, page)
-            )
-            response = requests.get(
-                    url,
-                    headers = self.headers,
-            ).json()
+            self.logger.info('%s (page %d)' % (msg, page))
+            response = requests.get(url, headers=self.headers).json()
             for ourthing in response['results']:
                 ourthings[ourthing['name']] = ourthing
             url = response['next']
@@ -206,7 +204,7 @@ class GuideBook:
         data = {
             'guide': self.guide,
             'name': room,
-            'location_type': 2, # not google maps
+            'location_type': 2,  # not google maps
         }
         self.rooms[room] = self.add_thing('rooms', room, data, update, rid)
 
@@ -228,8 +226,10 @@ class GuideBook:
         '''
         d = session['Date'].split()[1]
         month, date, year = d.split('/')
-        start = "%s-%s-%sT%s:00" % (year, month, date, session['Time Start'])
-        end = "%s-%s-%sT%s:00" % (year, month, date, session['Time End'])
+        start = "%s-%s-%sT%s:00-0700" % (
+                    year, month, date, session['Time Start']
+                )
+        end = "%s-%s-%sT%s:00-0700" % (year, month, date, session['Time End'])
         return (start, end)
 
     def get_id(self, thing, session):
@@ -257,8 +257,6 @@ class GuideBook:
         if update and not self.update:
             return
         name = session['Session Title']
-        verb = 'Updating' if update else 'Adding'
-        self.logger.info("%s session '%s' to Guidebook" % (verb, name))
         start, end = self.get_times(session)
         data = {
             'name': name,
@@ -270,7 +268,9 @@ class GuideBook:
             'locations': self.get_id('rooms', session),
         }
         self.logger.debug("Data: %s" % data)
-        self.sessions[name] = self.add_thing('sessions', name, data, update, sid)
+        self.sessions[name] = self.add_thing(
+            'sessions', name, data, update, sid
+        )
 
     def setup_sessions(self, sessions):
         '''
@@ -341,16 +341,24 @@ class GuideBook:
 
 
 @click.command()
-@click.option('--debug/--no-debug', '-d', default=False,
-        help="Print debug messages.")
-@click.option('--update/--no-update', '-u', default=False,
-        help="Update existing sessions.")
-@click.option('--delete-all/--no-delete-all', default=False,
-        help="Delete all tracks, rooms, and sessions")
-@click.option('--csv-file', default=DBASE_DEFAULT,
-        help="CSV file to use.")
-@click.option('--api-file', '-a', default='guidebook_api.txt',
-        help="File to read API key from")
+@click.option(
+    '--debug/--no-debug', '-d', default=False, help="Print debug messages."
+)
+@click.option(
+    '--update/--no-update', '-u', default=False,
+    help="Update existing sessions."
+)
+@click.option(
+    '--delete-all/--no-delete-all', default=False,
+    help="Delete all tracks, rooms, and sessions"
+)
+@click.option(
+    '--csv-file', default=DBASE_DEFAULT, help="CSV file to use."
+)
+@click.option(
+    '--api-file', '-a', default='guidebook_api.txt',
+    help="File to read API key from"
+)
 def main(debug, update, delete_all, csv_file, api_file):
     level = logging.INFO
     if debug:
@@ -366,9 +374,9 @@ def main(debug, update, delete_all, csv_file, api_file):
         key = api.read().strip()
 
     if delete_all:
-        print "WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        print "This will cause any attendee who has saved any sessions"
-        print "into a schedule to lose all of that work."
+        print 'WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'  # noqa: E999
+        print 'This will cause any attendee who has saved any sessions'
+        print 'into a schedule to lose all of that work.'
         click.confirm('ARE YOU FUCKING SURE?!', abort=True)
     else:
         ourdata = OurCSV(csv_file, logger)
@@ -380,6 +388,7 @@ def main(debug, update, delete_all, csv_file, api_file):
         ourguide.setup_tracks(ourdata.tracks)
         ourguide.setup_rooms(ourdata.rooms)
         ourguide.setup_sessions(ourdata.sessions)
+
 
 if __name__ == '__main__':
     main()

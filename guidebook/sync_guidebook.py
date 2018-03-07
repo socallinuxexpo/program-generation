@@ -122,10 +122,17 @@ class GuideBook:
         response = requests.get(
             self.URLS['guide'], headers=self.headers
         ).json()
-        if not len(response['results']) == 1:
-            self.logger.critical("ERROR: Did not find exactly 1 guide...")
+        guide_id = None
+        for guide in response['results']:
+            if guide['name'].lower() == 'scale 16x':
+                guide_id = guide['id']
+                break
+        if not guide_id:
+            self.logger.critical(
+                'ERROR: Could not determine guide ID'
+            )
             sys.exit(1)
-        return response['results'][0]['id']
+        return guide_id
 
     def get_things(self, thing):
         '''

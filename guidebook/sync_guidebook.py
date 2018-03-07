@@ -27,7 +27,6 @@
 # to update that.
 #
 
-from __future__ import print_function
 import click
 import csv
 import logging
@@ -137,6 +136,8 @@ class GuideBook:
         'Room 214': {'h': 0.039, 'w': 0.03, 'x': 0.273, 'y': 0.713},
     }
 
+    REGIONED_MAP = 'Pasadena-Convention-Center-Map-1000-72-fs8'
+
     def __init__(self, logger, update, key, x_key=None):
         self.logger = logger
         self.update = update
@@ -177,10 +178,10 @@ class GuideBook:
         response = requests.get(
            self.URLS['x-maps'], headers=self.x_headers
         ).json()
-        if len(response['results']) != 1:
-            self.logger.critical("ERROR: Did not find exactly 1 map...")
-            sys.exit(1)
-        return response['results'][0]['id']
+        for r in response['results']:
+            if r['name']['en-US'] == self.REGIONED_MAP:
+                return r['id']
+        self.logger.critical('ERROR: Did not find expected map')
 
     def get_things(self, thing):
         '''
@@ -287,6 +288,8 @@ class GuideBook:
         for room in rooms:
             update = False
             rid = None
+            if room in self.x_rooms:
+                continue
             if room in self.rooms:
                 update = True
                 rid = self.rooms[room]['id']
@@ -308,8 +311,9 @@ class GuideBook:
 
     def get_x_map_region_for_room(self, room):
         return next((reg for reg in self.x_map_regions.values()
-                     if reg['location']['id'] == self.x_rooms[room]['id']),
-                    None)
+                     if (reg['location'] is not None and
+                         'name' in reg['location'] and
+                         reg['location']['id'] == room)), None)
 
     def setup_x_map_regions(self):
         for room, map_region in self.ROOM_TO_MAP_REGION.items():

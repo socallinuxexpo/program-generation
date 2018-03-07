@@ -348,10 +348,10 @@ class GuideBook:
         '''
         d = session['Date'].split()[1]
         month, date, year = d.split('/')
-        start = "%s-%s-%sT%s:00-0700" % (
+        start = "%s-%s-%sT%s:00-0800" % (
                     year, month, date, session['Time Start']
                 )
-        end = "%s-%s-%sT%s:00-0700" % (year, month, date, session['Time End'])
+        end = "%s-%s-%sT%s:00-0800" % (year, month, date, session['Time End'])
         return (start, end)
 
     def get_id(self, thing, session):
@@ -369,7 +369,12 @@ class GuideBook:
         self.logger.debug(
             "List of %s's is %s" % (thing, ourlist.keys())
         )
-        ourid = ourlist[session[key]]['id']
+        ourid = None
+        if session[key] in ourlist:
+            ourid = ourlist[session[key]]['id']
+        else:
+            ourlist = getattr(self, "x_%s" % thing)
+            ourid = ourlist[session[key]]['id']
         return [ourid]
 
     def add_session(self, session, update, sid=None):

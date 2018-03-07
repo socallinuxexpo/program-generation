@@ -273,6 +273,7 @@ class GuideBook:
             'description_html': '<p>%s</p>' % session['Description'],
             'schedule_tracks': self.get_id('tracks', session),
             'locations': self.get_id('rooms', session),
+            'add_to_schedule': True,
         }
         self.logger.debug("Data: %s" % data)
         self.sessions[name] = self.add_thing(

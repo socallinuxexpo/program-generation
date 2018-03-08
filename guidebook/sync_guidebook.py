@@ -32,6 +32,8 @@ import csv
 import logging
 import requests
 import sys
+import pytz
+from datetime import datetime
 
 DBASE_DEFAULT = '/tmp/presentation_exporter_event_1967.csv'
 
@@ -342,17 +344,26 @@ class GuideBook:
 
             self.add_x_map_region(map_region, update, rid, location_id)
 
+    def to_utc(self, ts):
+        loc_dt = datetime.strptime(ts, '%Y-%m-%d %H:%M')
+        pt_dt = pytz.timezone('US/Pacific').localize(loc_dt)
+        return pt_dt.astimezone(pytz.utc)
+
     def get_times(self, session):
         '''
         Helper function to build times for guidebook.
         '''
         d = session['Date'].split()[1]
         month, date, year = d.split('/')
-        start = "%s-%s-%sT%s:00-0800" % (
-                    year, month, date, session['Time Start']
-                )
-        end = "%s-%s-%sT%s:00-0800" % (year, month, date, session['Time End'])
-        return (start, end)
+
+        start_ts = "%s-%s-%s %s" % (
+            year, month, date, session['Time Start']
+        )
+
+        end_ts = "%s-%s-%s %s" % (
+            year, month, date, session['Time End']
+        )
+        return (self.to_utc(start_ts), self.to_utc(end_ts))
 
     def get_id(self, thing, session):
         '''

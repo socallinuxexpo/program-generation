@@ -35,7 +35,7 @@ import sys
 import pytz
 from datetime import datetime
 
-DBASE_DEFAULT = '/tmp/presentation_exporter_event_1967.csv'
+DBASE_DEFAULT = "/tmp/presentation_exporter_event_1967.csv"
 
 
 class OurCSV:
@@ -44,8 +44,8 @@ class OurCSV:
     sessions = set()
 
     FIELD_MAPPING = {
-        'tracks': 'Schedule Track (Optional)',
-        'rooms': 'Room/Location',
+        "tracks": "Schedule Track (Optional)",
+        "rooms": "Room/Location",
     }
 
     def __init__(self, dbase, logger):
@@ -54,20 +54,20 @@ class OurCSV:
 
     def cleanrecord(self, record):
         for field in record:
-            record[field] = record[field].decode('utf-8')
+            record[field] = record[field].decode("utf-8")
         return record
 
     def load_csv(self, filename):
-        self.logger.info('Loading CSV file')
+        self.logger.info("Loading CSV file")
         data = []
-        with open(filename, 'rb') as csvfile:
-            reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+        with open(filename, "rb") as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=",", quotechar='"')
             for row in reader:
-                track = row[self.FIELD_MAPPING['tracks']]
-                room = row[self.FIELD_MAPPING['rooms']]
-                if track != '':
+                track = row[self.FIELD_MAPPING["tracks"]]
+                room = row[self.FIELD_MAPPING["rooms"]]
+                if track != "":
                     self.tracks.add(track)
-                if room != '':
+                if room != "":
                     self.rooms.add(room)
                 data.append(self.cleanrecord(row))
         return data
@@ -75,136 +75,133 @@ class OurCSV:
 
 class GuideBook:
     URLS = {
-        'guide': 'https://builder.guidebook.com/open-api/v1/guides/',
-        'tracks': 'https://builder.guidebook.com/open-api/v1/schedule-tracks/',
-        'rooms': 'https://builder.guidebook.com/open-api/v1/locations/',
-        'sessions': 'https://builder.guidebook.com/open-api/v1/sessions/',
-
-        'x-rooms': 'https://builder.guidebook.com/api/locations/',
-        'x-maps': 'https://builder.guidebook.com/api/maps/',
-        'x-map-regions': 'https://builder.guidebook.com/api/map-regions/',
+        "guide": "https://builder.guidebook.com/open-api/v1/guides/",
+        "tracks": "https://builder.guidebook.com/open-api/v1/schedule-tracks/",
+        "rooms": "https://builder.guidebook.com/open-api/v1/locations/",
+        "sessions": "https://builder.guidebook.com/open-api/v1/sessions/",
+        "x-rooms": "https://builder.guidebook.com/api/locations/",
+        "x-maps": "https://builder.guidebook.com/api/maps/",
+        "x-map-regions": "https://builder.guidebook.com/api/map-regions/",
     }
 
     COLOR_MAP = {
-        'Badge Hacking': '#dddddd',
-        'BoFs': '#ffbc00',
-        'Cloud': '#638dce',
-        'Container and Virtualization': '#ffa200',
-        'DevOps': '#565448',
-        'Developer': '#d65c09',
-        'Embedded': '#004a4a',
-        'General': '#97a67a',
-        'HAM Radio': '#96beef',
-        'Keynote': '#d31111',
-        'Legal & Licensing': '#fff8dc',
-        'LibreGraphics': '#dddddd',
-        'Mentoring': '#998876',
-        'Monitoring': '#ffbc00',
-        'MySQL': '#0aaca0',
-        'Next Generation': '#96f74b',
-        'Open Data': '#6c6c6c',
-        'Open Source in Enterprises': '#ffd672',
-        'PostgreSQL': '#0aaca0',
-        'Security': '#000000',
-        'SysAdmin': '#c4c249',
-        'Ubucon': '#774022',
+        "Badge Hacking": "#dddddd",
+        "BoFs": "#ffbc00",
+        "Cloud": "#638dce",
+        "Container and Virtualization": "#ffa200",
+        "DevOps": "#565448",
+        "Developer": "#d65c09",
+        "Embedded": "#004a4a",
+        "General": "#97a67a",
+        "HAM Radio": "#96beef",
+        "Keynote": "#d31111",
+        "Legal & Licensing": "#fff8dc",
+        "LibreGraphics": "#dddddd",
+        "Mentoring": "#998876",
+        "Monitoring": "#ffbc00",
+        "MySQL": "#0aaca0",
+        "Next Generation": "#96f74b",
+        "Open Data": "#6c6c6c",
+        "Open Source in Enterprises": "#ffd672",
+        "PostgreSQL": "#0aaca0",
+        "Security": "#000000",
+        "SysAdmin": "#c4c249",
+        "Ubucon": "#774022",
     }
 
     ROOM_TO_MAP_REGION = {
-        'Ballroom A': {'h': 0.04, 'w': 0.056, 'x': 0.668, 'y': 0.477},
-        'Ballroom B': {'h': 0.04, 'w': 0.056, 'x': 0.668, 'y': 0.519},
-        'Ballroom C': {'h': 0.04, 'w': 0.056, 'x': 0.668, 'y': 0.56},
-        'Ballroom DE': {'h': 0.122, 'w': 0.082, 'x': 0.729, 'y': 0.477},
-        'Ballroom F': {'h': 0.04, 'w': 0.056, 'x': 0.816, 'y': 0.56},
-        'Ballroom G': {'h': 0.04, 'w': 0.056, 'x': 0.816, 'y': 0.519},
-        'Ballroom H': {'h': 0.04, 'w': 0.056, 'x': 0.816, 'y': 0.477},
-        'Check-in': {'h': 0.09, 'w': 0.06, 'x': 0.608, 'y': 0.301},
-        'Exhibit Hall': {'h': 0.141, 'w': 0.209, 'x': 0.675, 'y': 0.189},
-        'Room 101': {'h': 0.039, 'w': 0.042, 'x': 0.58, 'y': 0.843},
-        'Room 102': {'h': 0.039, 'w': 0.042, 'x': 0.535, 'y': 0.843},
-        'Room 103': {'h': 0.039, 'w': 0.042, 'x': 0.488, 'y': 0.843},
-        'Room 104': {'h': 0.039, 'w': 0.042, 'x': 0.443, 'y': 0.843},
-        'Room 105': {'h': 0.039, 'w': 0.042, 'x': 0.396, 'y': 0.843},
-        'Room 106': {'h': 0.048, 'w': 0.077, 'x': 0.396, 'y': 0.713},
-        'Room 107': {'h': 0.048, 'w': 0.077, 'x': 0.545, 'y': 0.713},
-        'Room 204': {'h': 0.042, 'w': 0.03, 'x': 0.231, 'y': 0.836},
-        'Room 205': {'h': 0.021, 'w': 0.025, 'x': 0.201, 'y': 0.836},
-        'Room 207': {'h': 0.042, 'w': 0.03, 'x': 0.154, 'y': 0.836},
-        'Room 208': {'h': 0.042, 'w': 0.03, 'x': 0.121, 'y': 0.836},
-        'Room 209': {'h': 0.021, 'w': 0.025, 'x': 0.079, 'y': 0.858},
-        'Room 210': {'h': 0.021, 'w': 0.025, 'x': 0.079, 'y': 0.836},
-        'Room 211': {'h': 0.039, 'w': 0.065, 'x': 0.079, 'y': 0.713},
-        'Room 212': {'h': 0.039, 'w': 0.03, 'x': 0.237, 'y': 0.713},
-        'Room 214': {'h': 0.039, 'w': 0.03, 'x': 0.273, 'y': 0.713},
+        "Ballroom A": {"h": 0.04, "w": 0.056, "x": 0.668, "y": 0.477},
+        "Ballroom B": {"h": 0.04, "w": 0.056, "x": 0.668, "y": 0.519},
+        "Ballroom C": {"h": 0.04, "w": 0.056, "x": 0.668, "y": 0.56},
+        "Ballroom DE": {"h": 0.122, "w": 0.082, "x": 0.729, "y": 0.477},
+        "Ballroom F": {"h": 0.04, "w": 0.056, "x": 0.816, "y": 0.56},
+        "Ballroom G": {"h": 0.04, "w": 0.056, "x": 0.816, "y": 0.519},
+        "Ballroom H": {"h": 0.04, "w": 0.056, "x": 0.816, "y": 0.477},
+        "Check-in": {"h": 0.09, "w": 0.06, "x": 0.608, "y": 0.301},
+        "Exhibit Hall": {"h": 0.141, "w": 0.209, "x": 0.675, "y": 0.189},
+        "Room 101": {"h": 0.039, "w": 0.042, "x": 0.58, "y": 0.843},
+        "Room 102": {"h": 0.039, "w": 0.042, "x": 0.535, "y": 0.843},
+        "Room 103": {"h": 0.039, "w": 0.042, "x": 0.488, "y": 0.843},
+        "Room 104": {"h": 0.039, "w": 0.042, "x": 0.443, "y": 0.843},
+        "Room 105": {"h": 0.039, "w": 0.042, "x": 0.396, "y": 0.843},
+        "Room 106": {"h": 0.048, "w": 0.077, "x": 0.396, "y": 0.713},
+        "Room 107": {"h": 0.048, "w": 0.077, "x": 0.545, "y": 0.713},
+        "Room 204": {"h": 0.042, "w": 0.03, "x": 0.231, "y": 0.836},
+        "Room 205": {"h": 0.021, "w": 0.025, "x": 0.201, "y": 0.836},
+        "Room 207": {"h": 0.042, "w": 0.03, "x": 0.154, "y": 0.836},
+        "Room 208": {"h": 0.042, "w": 0.03, "x": 0.121, "y": 0.836},
+        "Room 209": {"h": 0.021, "w": 0.025, "x": 0.079, "y": 0.858},
+        "Room 210": {"h": 0.021, "w": 0.025, "x": 0.079, "y": 0.836},
+        "Room 211": {"h": 0.039, "w": 0.065, "x": 0.079, "y": 0.713},
+        "Room 212": {"h": 0.039, "w": 0.03, "x": 0.237, "y": 0.713},
+        "Room 214": {"h": 0.039, "w": 0.03, "x": 0.273, "y": 0.713},
     }
 
-    REGIONED_MAP = 'Pasadena-Convention-Center-Map-1000-72-fs8'
+    REGIONED_MAP = "Pasadena-Convention-Center-Map-1000-72-fs8"
 
     def __init__(self, logger, update, key, x_key=None):
         self.logger = logger
         self.update = update
-        self.headers = {'Authorization': 'JWT ' + key}
+        self.headers = {"Authorization": "JWT " + key}
         self.guide = self.get_guide()
-        self.tracks = self.get_things('tracks')
-        self.rooms = self.get_things('rooms')
-        self.sessions = self.get_things('sessions')
+        self.tracks = self.get_things("tracks")
+        self.rooms = self.get_things("rooms")
+        self.sessions = self.get_things("sessions")
 
         if x_key:
-            self.x_headers = {'Authorization': 'JWT ' + x_key}
-            self.x_rooms = self.get_things('x-rooms')
+            self.x_headers = {"Authorization": "JWT " + x_key}
+            self.x_rooms = self.get_things("x-rooms")
             self.x_map_id = self.get_x_map_id()
-            self.x_map_regions = self.get_things('x-map-regions')
+            self.x_map_regions = self.get_things("x-map-regions")
 
     def get_guide(self):
-        '''
+        """
         We always have a single guide, and need it's IDs for most calls,
         so we request all guides, check there's only one, and then return
         it's ID.
-        '''
-        response = requests.get(
-            self.URLS['guide'], headers=self.headers
-        ).json()
+        """
+        response = requests.get(self.URLS["guide"], headers=self.headers).json()
         guide_id = None
-        for guide in response['results']:
-            if guide['name'].lower() == 'scale 16x':
-                guide_id = guide['id']
+        for guide in response["results"]:
+            if guide["name"].lower() == "scale 16x":
+                guide_id = guide["id"]
                 break
         if not guide_id:
-            self.logger.critical(
-                'ERROR: Could not determine guide ID'
-            )
+            self.logger.critical("ERROR: Could not determine guide ID")
             sys.exit(1)
         return guide_id
 
     def get_x_map_id(self):
         response = requests.get(
-           self.URLS['x-maps'], headers=self.x_headers
+            self.URLS["x-maps"], headers=self.x_headers
         ).json()
-        for r in response['results']:
-            if r['name']['en-US'] == self.REGIONED_MAP:
-                return r['id']
-        self.logger.critical('ERROR: Did not find expected map')
+        for r in response["results"]:
+            if r["name"]["en-US"] == self.REGIONED_MAP:
+                return r["id"]
+        self.logger.critical("ERROR: Did not find expected map")
 
     def get_things(self, thing):
-        '''
+        """
         Get the current set of <thing> from Guidebook, where <thing> is rooms,
         tracks, sessions.
-        '''
-        msg = 'Loading %s from Guidebook' % thing
+        """
+        msg = "Loading %s from Guidebook" % thing
         ourthings = {}
-        url = self.URLS[thing] + '?guide=%d' % self.guide
+        url = self.URLS[thing] + "?guide=%d" % self.guide
         page = 1
         while url is not None:
-            self.logger.info('%s (page %d)' % (msg, page))
+            self.logger.info("%s (page %d)" % (msg, page))
             response = requests.get(
-                    url,
-                    headers=(self.headers
-                             if not thing.startswith('x-') else
-                             self.x_headers),
+                url,
+                headers=(
+                    self.headers
+                    if not thing.startswith("x-")
+                    else self.x_headers
+                ),
             ).json()
-            for ourthing in response['results']:
+            for ourthing in response["results"]:
                 # Fallback to id for things without names (e.g. map-regions)
-                name = ourthing.get('name') or ourthing.get('id')
+                name = ourthing.get("name") or ourthing.get("id")
                 if isinstance(name, dict):
                     # Things retrived from the internal API
                     # (i.e. x-* things) have names that are dicts like:
@@ -212,32 +209,30 @@ class GuideBook:
                     # Assume first value is what we want
                     name = list(name.values())[0]
                 ourthings[name] = ourthing
-            url = response['next']
+            url = response["next"]
             page += 1
-        self.logger.debug('Loaded %s: %s things', thing, len(ourthings))
+        self.logger.debug("Loaded %s: %s things", thing, len(ourthings))
         return ourthings
 
     def add_thing(self, thing, name, data, update, tid):
-        '''
+        """
         Implementation of adding objects to Guidebook. Wrapped by the
         functions that know how to build the data and use it.
-        '''
-        verb = 'Updating' if update else 'Adding'
+        """
+        verb = "Updating" if update else "Adding"
         self.logger.info("%s %s '%s' to Guidebook" % (verb, thing, name))
         self.logger.debug("Data: %s" % data)
-        headers = (self.headers
-                   if not thing.startswith('x-') else
-                   self.x_headers)
+        headers = self.headers if not thing.startswith("x-") else self.x_headers
         if update:
             response = requests.patch(
-                self.URLS[thing] + '%d/' % tid, data=data, headers=headers
+                self.URLS[thing] + "%d/" % tid, data=data, headers=headers
             ).json()
         else:
             response = requests.post(
                 self.URLS[thing], data=data, headers=headers
             ).json()
         self.logger.debug("Response: %s" % response)
-        if 'id' not in response:
+        if "id" not in response:
             self.logger.error("Failed to import.")
             self.logger.error("DATA: %s" % data)
             self.logger.error("RESPONSE: %s" % response)
@@ -245,48 +240,48 @@ class GuideBook:
         return response
 
     def add_track(self, track, update, tid):
-        '''
+        """
         Track-specific wrapper around add_thing()
-        '''
+        """
         if update and not self.update:
             return
         data = {
-            'guide': self.guide,
-            'name': track,
+            "guide": self.guide,
+            "name": track,
             # NOTE WELL: Guidebook cannot handle lower-case letters
-            'color': self.COLOR_MAP[track].upper(),
+            "color": self.COLOR_MAP[track].upper(),
         }
-        self.tracks[track] = self.add_thing('tracks', track, data, update, tid)
+        self.tracks[track] = self.add_thing("tracks", track, data, update, tid)
 
     def setup_tracks(self, tracks):
-        '''
+        """
         Add all tracks passed in if missing.
-        '''
+        """
         for track in tracks:
             update = False
             tid = None
             if track in self.tracks:
                 update = True
-                tid = self.tracks[track]['id']
+                tid = self.tracks[track]["id"]
             self.add_track(track, update, tid)
 
     def add_room(self, room, update, rid):
-        '''
+        """
         Room-specific wrapper around add_thing()
-        '''
+        """
         if update and not self.update:
             return
         data = {
-            'guide': self.guide,
-            'name': room,
-            'location_type': 2,  # not google maps
+            "guide": self.guide,
+            "name": room,
+            "location_type": 2,  # not google maps
         }
-        self.rooms[room] = self.add_thing('rooms', room, data, update, rid)
+        self.rooms[room] = self.add_thing("rooms", room, data, update, rid)
 
     def setup_rooms(self, rooms):
-        '''
+        """
         Add all rooms passed in if missing.
-        '''
+        """
         for room in rooms:
             update = False
             rid = None
@@ -294,151 +289,158 @@ class GuideBook:
                 continue
             if room in self.rooms:
                 update = True
-                rid = self.rooms[room]['id']
+                rid = self.rooms[room]["id"]
             self.add_room(room, update, rid)
 
     def add_x_map_region(self, map_region, update, rid, location_id):
         if update and not self.update:
             return
-        name = 'map-regions-%s' % rid,
+        name = ("map-regions-%s" % rid,)
         data = {
-            'map_object': self.x_map_id,
-            'location': location_id,
-            'relative_x': map_region['x'],
-            'relative_y': map_region['y'],
-            'relative_width': map_region['w'],
-            'relative_height': map_region['h'],
+            "map_object": self.x_map_id,
+            "location": location_id,
+            "relative_x": map_region["x"],
+            "relative_y": map_region["y"],
+            "relative_width": map_region["w"],
+            "relative_height": map_region["h"],
         }
-        self.add_thing('x-map-regions', name, data, update, rid)
+        self.add_thing("x-map-regions", name, data, update, rid)
 
     def get_x_map_region_for_room(self, room):
-        return next((reg for reg in self.x_map_regions.values()
-                     if (reg['location'] is not None and
-                         'name' in reg['location'] and
-                         reg['location']['id'] == room)), None)
+        return next(
+            (
+                reg
+                for reg in self.x_map_regions.values()
+                if (
+                    reg["location"] is not None
+                    and "name" in reg["location"]
+                    and reg["location"]["id"] == room
+                )
+            ),
+            None,
+        )
 
     def setup_x_map_regions(self):
         for room, map_region in self.ROOM_TO_MAP_REGION.items():
             if room not in self.x_rooms:
-                self.logger.warning('Room "%s" does not exist in Guidebook. '
-                                    'Skipping map region %s', room, map_region)
+                self.logger.warning(
+                    'Room "%s" does not exist in Guidebook. '
+                    "Skipping map region %s",
+                    room,
+                    map_region,
+                )
                 continue
             update = False
             rid = None
             guidebook_map_region = self.get_x_map_region_for_room(room)
             if guidebook_map_region:
                 update = True
-                rid = guidebook_map_region['id']
+                rid = guidebook_map_region["id"]
 
-            location_id = self.x_rooms[room]['id']
+            location_id = self.x_rooms[room]["id"]
 
             if self.update:
                 # Update room's Guidebook location to work the map region.
                 # NOTE: Changing the type to gb-interactive hides the location
                 # from the official API so it's might break other things.
-                self.add_thing('x-rooms',
-                               room,
-                               data={'location_type': 'gb-interactive'},
-                               update=True,
-                               tid=self.x_rooms[room]['id'])
+                self.add_thing(
+                    "x-rooms",
+                    room,
+                    data={"location_type": "gb-interactive"},
+                    update=True,
+                    tid=self.x_rooms[room]["id"],
+                )
 
             self.add_x_map_region(map_region, update, rid, location_id)
 
     def to_utc(self, ts):
-        loc_dt = datetime.strptime(ts, '%Y-%m-%d %H:%M')
-        pt_dt = pytz.timezone('US/Pacific').localize(loc_dt)
+        loc_dt = datetime.strptime(ts, "%Y-%m-%d %H:%M")
+        pt_dt = pytz.timezone("US/Pacific").localize(loc_dt)
         return pt_dt.astimezone(pytz.utc)
 
     def get_times(self, session):
-        '''
+        """
         Helper function to build times for guidebook.
-        '''
-        d = session['Date'].split()[1]
-        month, date, year = d.split('/')
+        """
+        d = session["Date"].split()[1]
+        month, date, year = d.split("/")
 
-        start_ts = "%s-%s-%s %s" % (
-            year, month, date, session['Time Start']
-        )
+        start_ts = "%s-%s-%s %s" % (year, month, date, session["Time Start"])
 
-        end_ts = "%s-%s-%s %s" % (
-            year, month, date, session['Time End']
-        )
+        end_ts = "%s-%s-%s %s" % (year, month, date, session["Time End"])
         return (self.to_utc(start_ts), self.to_utc(end_ts))
 
     def get_id(self, thing, session):
-        '''
+        """
         Get the ID for <thing> where thing is a room or track
-        '''
+        """
         key = OurCSV.FIELD_MAPPING[thing]
-        if session[key] == '':
+        if session[key] == "":
             return []
         self.logger.debug(
             "Thing: %s, Key: %s, Val: %s" % (thing, key, session[key])
         )
         # This is `ourlist = self.rooms` or `ourlist = self.tracks`
         ourlist = getattr(self, thing)
-        self.logger.debug(
-            "List of %s's is %s" % (thing, ourlist.keys())
-        )
+        self.logger.debug("List of %s's is %s" % (thing, ourlist.keys()))
         ourid = None
         if session[key] in ourlist:
-            ourid = ourlist[session[key]]['id']
+            ourid = ourlist[session[key]]["id"]
         else:
             ourlist = getattr(self, "x_%s" % thing)
-            ourid = ourlist[session[key]]['id']
+            ourid = ourlist[session[key]]["id"]
         return [ourid]
 
     def add_session(self, session, update, sid=None):
-        '''
+        """
         Sesssion-specific wrapper around add_thing()
-        '''
+        """
         if update and not self.update:
             return
-        name = session['Session Title']
+        name = session["Session Title"]
         start, end = self.get_times(session)
         data = {
-            'name': name,
-            'start_time': start,
-            'end_time': end,
-            'guide': self.guide,
-            'description_html': '<p>%s</p>' % session['Description'],
-            'schedule_tracks': self.get_id('tracks', session),
-            'locations': self.get_id('rooms', session),
-            'add_to_schedule': True,
+            "name": name,
+            "start_time": start,
+            "end_time": end,
+            "guide": self.guide,
+            "description_html": "<p>%s</p>" % session["Description"],
+            "schedule_tracks": self.get_id("tracks", session),
+            "locations": self.get_id("rooms", session),
+            "add_to_schedule": True,
         }
         self.logger.debug("Data: %s" % data)
         self.sessions[name] = self.add_thing(
-            'sessions', name, data, update, sid
+            "sessions", name, data, update, sid
         )
 
     def setup_sessions(self, sessions):
-        '''
+        """
         Add all rooms passed in if missing.
-        '''
+        """
         for session in sessions:
-            name = session['Session Title']
+            name = session["Session Title"]
             update = False
             sid = None
-            if session['Date'] == '':
+            if session["Date"] == "":
                 self.logger.warn("Skipping %s - no date" % name)
             if name in self.sessions:
                 update = True
-                sid = self.sessions[name]['id']
+                sid = self.sessions[name]["id"]
             self.add_session(session, update, sid)
 
     def delete_sessions(self):
         self.logger.warn("Deleting all sessions")
         for session in self.sessions.values():
             self.logger.debug(
-                "Deleting session %d [%s]" % (session['id'], session['name'])
+                "Deleting session %d [%s]" % (session["id"], session["name"])
             )
             response = requests.delete(
-                self.URLS['sessions'] + '%d/' % session['id'],
+                self.URLS["sessions"] + "%d/" % session["id"],
                 headers=self.headers,
             )
             self.logger.debug("Got %d" % response.status_code)
-            if not (response.status_code >= 200 and
-                    response.status_code < 300):
+            if not (response.status_code >= 200 and response.status_code < 300):
                 self.logger.error("Failed to delete")
                 self.logger.error("RESPONSE: %s" % response.json())
                 sys.exit(1)
@@ -447,10 +449,10 @@ class GuideBook:
         self.logger.warn("Deleting all tracks")
         for track in self.tracks.values():
             self.logger.debug(
-                "Deleting track %d [%s]" % (track['id'], track['name'])
+                "Deleting track %d [%s]" % (track["id"], track["name"])
             )
             response = requests.delete(
-                self.URLS['tracks'] + '%d/' % track['id'],
+                self.URLS["tracks"] + "%d/" % track["id"],
                 headers=self.headers,
             )
             if response.status_code != 204:
@@ -462,10 +464,10 @@ class GuideBook:
         self.logger.warn("Deleting all rooms")
         for room in self.rooms.values():
             self.logger.debug(
-                "Deleting room %d [%s]" % (room['id'], room['name'])
+                "Deleting room %d [%s]" % (room["id"], room["name"])
             )
             response = requests.delete(
-                self.URLS['rooms'] + '%d/' % room['id'],
+                self.URLS["rooms"] + "%d/" % room["id"],
                 headers=self.headers,
             )
             if response.status_code != 204:
@@ -481,26 +483,31 @@ class GuideBook:
 
 @click.command()
 @click.option(
-    '--debug/--no-debug', '-d', default=False, help="Print debug messages."
+    "--debug/--no-debug", "-d", default=False, help="Print debug messages."
 )
 @click.option(
-    '--update/--no-update', '-u', default=False,
-    help="Update existing sessions."
+    "--update/--no-update",
+    "-u",
+    default=False,
+    help="Update existing sessions.",
 )
 @click.option(
-    '--delete-all/--no-delete-all', default=False,
-    help="Delete all tracks, rooms, and sessions"
+    "--delete-all/--no-delete-all",
+    default=False,
+    help="Delete all tracks, rooms, and sessions",
+)
+@click.option("--csv-file", default=DBASE_DEFAULT, help="CSV file to use.")
+@click.option(
+    "--api-file",
+    "-a",
+    default="guidebook_api.txt",
+    help="File to read API key from",
 )
 @click.option(
-    '--csv-file', default=DBASE_DEFAULT, help="CSV file to use."
-)
-@click.option(
-    '--api-file', '-a', default='guidebook_api.txt',
-    help="File to read API key from"
-)
-@click.option(
-    '--x-api-file', '-x', default='guidebook_api_x.txt',
-    help="File to read API key from"
+    "--x-api-file",
+    "-x",
+    default="guidebook_api_x.txt",
+    help="File to read API key from",
 )
 def main(debug, update, delete_all, csv_file, api_file, x_api_file):
     level = logging.INFO
@@ -509,24 +516,24 @@ def main(debug, update, delete_all, csv_file, api_file, x_api_file):
     logger = logging.getLogger("genbook")
     logger.setLevel(level)
     ch = logging.StreamHandler()
-    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    formatter = logging.Formatter("%(levelname)s: %(message)s")
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    with open(api_file, 'r') as api:
+    with open(api_file, "r") as api:
         key = api.read().strip()
 
     try:
-        with open(x_api_file, 'r') as api:
+        with open(x_api_file, "r") as api:
             x_key = api.read().strip()
     except IOError:
         x_key = None
 
     if delete_all:
-        print('WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')  # noqa: E999
-        print('This will cause any attendee who has saved any sessions')
-        print('into a schedule to lose all of that work.')
-        click.confirm('ARE YOU FUCKING SURE?!', abort=True)
+        print("WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")  # noqa: E999
+        print("This will cause any attendee who has saved any sessions")
+        print("into a schedule to lose all of that work.")
+        click.confirm("ARE YOU FUCKING SURE?!", abort=True)
     else:
         ourdata = OurCSV(csv_file, logger)
 
@@ -541,5 +548,5 @@ def main(debug, update, delete_all, csv_file, api_file, x_api_file):
             ourguide.setup_x_map_regions()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

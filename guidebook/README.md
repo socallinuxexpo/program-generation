@@ -9,7 +9,7 @@ https://builder.guidebook.com/#/account/api/
 If you are doing regioned-maps, you will need to have an "internal" API key. Log into guidebook, and then open a developer console and shove in:
 
 ```
-javascript:alert(JSON.parse(localStorage.getItem('CurrentUser')).jwt)
+alert(JSON.parse(('; '+document.cookie).split(`; CurrentUser=`).pop().split(';')[0]).jwt)
 ```
 
 put that in a file and pass it to `-x`

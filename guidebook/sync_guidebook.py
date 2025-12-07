@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 #
 # Copyright 2018 Southern California Linux Expo
@@ -52,15 +52,11 @@ class OurCSV:
         self.logger = logger
         self.sessions = self.load_csv(dbase)
 
-    def cleanrecord(self, record):
-        for field in record:
-            record[field] = record[field].decode("utf-8")
-        return record
 
     def load_csv(self, filename):
         self.logger.info("Loading CSV file")
         data = []
-        with open(filename, "rb") as csvfile:
+        with open(filename, "r", encoding="utf-8") as csvfile:
             reader = csv.DictReader(csvfile, delimiter=",", quotechar='"')
             for row in reader:
                 track = row[self.FIELD_MAPPING["tracks"]]
@@ -69,7 +65,7 @@ class OurCSV:
                     self.tracks.add(track)
                 if room != "":
                     self.rooms.add(room)
-                data.append(self.cleanrecord(row))
+                data.append(row)
         return data
 
 

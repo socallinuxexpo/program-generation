@@ -36,6 +36,7 @@ import pytz
 from datetime import datetime
 
 DBASE_DEFAULT = "/tmp/presentation_exporter_event_1967.csv"
+GUIDE_NAME = "SCaLE"
 
 
 class OurCSV:
@@ -51,7 +52,6 @@ class OurCSV:
     def __init__(self, dbase, logger):
         self.logger = logger
         self.sessions = self.load_csv(dbase)
-
 
     def load_csv(self, filename):
         self.logger.info("Loading CSV file")
@@ -71,10 +71,10 @@ class OurCSV:
 
 class GuideBook:
     URLS = {
-        "guide": "https://builder.guidebook.com/open-api/v1/guides/",
-        "tracks": "https://builder.guidebook.com/open-api/v1/schedule-tracks/",
-        "rooms": "https://builder.guidebook.com/open-api/v1/locations/",
-        "sessions": "https://builder.guidebook.com/open-api/v1/sessions/",
+        "guide": "https://builder.guidebook.com/open-api/v1.1/guides/",
+        "tracks": "https://builder.guidebook.com/open-api/v1.1/schedule-tracks/",
+        "rooms": "https://builder.guidebook.com/open-api/v1.1/locations/",
+        "sessions": "https://builder.guidebook.com/open-api/v1.1/sessions/",
         "x-rooms": "https://builder.guidebook.com/api/locations/",
         "x-maps": "https://builder.guidebook.com/api/maps/",
         "x-map-regions": "https://builder.guidebook.com/api/map-regions/",
@@ -143,6 +143,7 @@ class GuideBook:
         self.tracks = self.get_things("tracks")
         self.rooms = self.get_things("rooms")
         self.sessions = self.get_things("sessions")
+        self.x_rooms = []
 
         if x_key:
             self.x_headers = {"Authorization": "JWT " + x_key}
@@ -159,7 +160,7 @@ class GuideBook:
         response = requests.get(self.URLS["guide"], headers=self.headers).json()
         guide_id = None
         for guide in response["results"]:
-            if guide["name"].lower() == "scale 16x":
+            if guide["name"].lower() == GUIDE_NAME.lower():
                 guide_id = guide["id"]
                 break
         if not guide_id:
@@ -195,6 +196,7 @@ class GuideBook:
                     else self.x_headers
                 ),
             ).json()
+            self.logger.debug("Response: %s" % response)
             for ourthing in response["results"]:
                 # Fallback to id for things without names (e.g. map-regions)
                 name = ourthing.get("name") or ourthing.get("id")
@@ -351,7 +353,7 @@ class GuideBook:
 
     def to_utc(self, ts):
         loc_dt = datetime.strptime(ts, "%Y-%m-%d %H:%M")
-        pt_dt = pytz.timezone("US/Pacific").localize(loc_dt)
+        pt_dt = pytz.timezone("America/Los_Angeles").localize(loc_dt)
         return pt_dt.astimezone(pytz.utc)
 
     def get_times(self, session):

@@ -6,6 +6,8 @@ https://developer.guidebook.com/
 Find a key here:
 https://builder.guidebook.com/#/account/api/
 
+Assumes you have already uploaded the main map manually (included in this repo).
+
 If you are doing regioned-maps, you will need to have an "internal" API key. Log into guidebook, and then open a developer console and shove in:
 
 ```

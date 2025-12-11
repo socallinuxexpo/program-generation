@@ -36,7 +36,7 @@ import pytz
 from datetime import datetime
 
 DBASE_DEFAULT = "/tmp/presentation_exporter_event_1967.csv"
-GUIDE_NAME = "SCaLE"
+GUIDE_NAME = "SCaLE 23x"
 
 
 class OurCSV:

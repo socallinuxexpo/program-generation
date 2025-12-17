@@ -45,7 +45,7 @@ class OurCSV:
     sessions = set()
 
     FIELD_MAPPING = {
-        "tracks": "Schedule Track (Optional)",
+        "tracks": "Session Track",
         "rooms": "Room/Location",
     }
 
@@ -81,28 +81,28 @@ class GuideBook:
     }
 
     COLOR_MAP = {
-        "Badge Hacking": "#dddddd",
+        "Applied Science": "#dddddd",
         "BoFs": "#ffbc00",
-        "Cloud": "#638dce",
-        "Container and Virtualization": "#ffa200",
-        "DevOps": "#565448",
+        "Career Day": "#dddddd",
+        "Cloud Native": "#638dce",
+        "DevOpsDay LA": "#565448",
         "Developer": "#d65c09",
-        "Embedded": "#004a4a",
+        "Embedded Linux": "#004a4a",
+        "FOSS @ HOME": "#998876",
         "General": "#97a67a",
         "HAM Radio": "#96beef",
+        "Higher Education": "#fff8dc",
+        "Kernel & Low Level Systems": "#ffa200",
         "Keynote": "#d31111",
-        "Legal & Licensing": "#fff8dc",
-        "LibreGraphics": "#dddddd",
-        "Mentoring": "#998876",
-        "Monitoring": "#ffbc00",
         "MySQL": "#0aaca0",
         "Next Generation": "#96f74b",
-        "Open Data": "#6c6c6c",
-        "Open Source in Enterprises": "#ffd672",
+        "Observability": "#ffbc00",
+        "Open Government": "#6c6c6c",
+        "Open Source AI": "#ffd672",
         "PostgreSQL": "#0aaca0",
         "Security": "#000000",
-        "SysAdmin": "#c4c249",
-        "Ubucon": "#774022",
+        "Systems & Infrastructure": "#c4c249",
+        "Workshops": "#774022",
     }
 
     ROOM_TO_MAP_REGION = {
@@ -421,14 +421,15 @@ class GuideBook:
             update = False
             sid = None
             if session["Date"] == "":
-                self.logger.warn("Skipping %s - no date" % name)
+                self.logger.warning("Skipping %s - no date" % name)
+                continue
             if name in self.sessions:
                 update = True
                 sid = self.sessions[name]["id"]
             self.add_session(session, update, sid)
 
     def delete_sessions(self):
-        self.logger.warn("Deleting all sessions")
+        self.logger.warning("Deleting all sessions")
         for session in self.sessions.values():
             self.logger.debug(
                 "Deleting session %d [%s]" % (session["id"], session["name"])
@@ -444,7 +445,7 @@ class GuideBook:
                 sys.exit(1)
 
     def delete_tracks(self):
-        self.logger.warn("Deleting all tracks")
+        self.logger.warning("Deleting all tracks")
         for track in self.tracks.values():
             self.logger.debug(
                 "Deleting track %d [%s]" % (track["id"], track["name"])
@@ -459,7 +460,7 @@ class GuideBook:
                 sys.exit(1)
 
     def delete_rooms(self):
-        self.logger.warn("Deleting all rooms")
+        self.logger.warning("Deleting all rooms")
         for room in self.rooms.values():
             self.logger.debug(
                 "Deleting room %d [%s]" % (room["id"], room["name"])

@@ -82,21 +82,21 @@ class GuideBook:
 
     COLOR_MAP = {
         "Applied Science": "#dddddd",
-        'Astricon': "#8b4789"
+        "Astricon": "#8b4789",
         "BoFs": "#ffbc00",
-        "Career Day": "#dddddd", # Open Source Career Day
-        "Cloud Native": "#638dce", # Cloud Native Days
+        "Career Day": "#dddddd",  # Open Source Career Day
+        "Cloud Native": "#638dce",  # Cloud Native Days
         "Developer": "#d65c09",
         "DevOpsDay LA": "#565448",
         "Embedded Linux": "#004a4a",
         "FOSS @ HOME": "#998876",
         "General": "#97a67a",
         "HAM Radio": "#96beef",
-        "Higher Education": "#fff8dc", # Open Source in Higher Education
+        "Higher Education": "#fff8dc",  # Open Source in Higher Education
         "Kernel & Low Level Systems": "#ffa200",
         "Keynote": "#d31111",
         "MySQL": "#0aaca0",
-        "Next Generation": "#96f74b", # The Next Generation
+        "Next Generation": "#96f74b",  # The Next Generation
         "Observability": "#ffbc00",
         "Open Government": "#6c6c6c",
         "Open Source AI": "#ffd672",
@@ -483,7 +483,7 @@ class GuideBook:
         self.delete_rooms()
 
 
-@click.command()
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
     "--debug/--no-debug", "-d", default=False, help="Print debug messages."
 )
